@@ -97,13 +97,27 @@ class HTTPClient(asyncore.dispatcher):
         bytes_sent = self.send(self.sendbuf)
         self.sendbuf = self.sendbuf[bytes_sent:]
 
+    def getInfo(self, header):
+        data = header.replace("\n ", " ").splitlines()
+        headers = {}
+        for line in data:
+            split_here = line.find(":")
+            headers[line[:split_here]] = line[split_here+2:]
+        return headers
+
+    def handle_error(self):
+        pass
 
     def handle_read(self):
         recv_bytes = self.recv(HTTPClient.RECV_CHUNK_SIZE)
         # self.logger.debug("{} recvd {} bytes".format(self.num,len(recv_bytes)))
         if self.num == self.count:
             head, data = recv_bytes.split("\r\n\r\n")
-            print "head: %s endhead" %(head)
+            a= self.getInfo(head)
+            # print "head: %s endhead" %(head)
+            print "This is content-length: ",a["Content-Length"]
+
+
         self.recvbuf.write(recv_bytes)
         self.count -= 1
         if self.count == 1:
