@@ -47,7 +47,8 @@ class HTTPClient(asyncore.dispatcher):
         self.start = 0
         self.end = 0
         self.count = count
-
+        self.content_length = 0
+        self.num_data_recv = 0
         # Create a logger
         self.logger = logging.getLogger(url)
 
@@ -97,22 +98,41 @@ class HTTPClient(asyncore.dispatcher):
         bytes_sent = self.send(self.sendbuf)
         self.sendbuf = self.sendbuf[bytes_sent:]
 
+    def getInfo(self, header):
+        data = header.replace("\n ", " ").splitlines()
+        headers = {}
+        for line in data:
+            split_here = line.find(":")
+            headers[line[:split_here]] = line[split_here+2:]
+        return headers
+
+    def handle_error(self):
+        pass
 
     def handle_read(self):
         recv_bytes = self.recv(HTTPClient.RECV_CHUNK_SIZE)
         # self.logger.debug("{} recvd {} bytes".format(self.num,len(recv_bytes)))
-        if self.num == self.count:
-            head, data = recv_bytes.split("\r\n\r\n")
-            print "head: %s endhead" %(head)
-        self.recvbuf.write(recv_bytes)
+        if self.num == self.count and self.content_length==0:
+            head, ini_data = recv_bytes.split("\r\n\r\n")
+            a= self.getInfo(head)
+            # print "head: %s endhead" %(head)
+            self.content_length = a["Content-Length"]
+            self.num_data_recv+=len(ini_data)
+            print "This is content-length: ",a["Content-Length"]
+        elif self.num ==self.count:
+            self.num_data_recv+=len(recv_bytes)
+            self.recvbuf.write(recv_bytes)
+        print "1.",self.num_data_recv
+        print "2.", self.content_length
+
         self.count -= 1
-        if self.count == 1:
+        if self.content_length==self.num_data_recv and self.count == 1:
             request = make_request('GET', self.path,
                 {'Host': self.host,
                  'Connection': 'close'}
             )
             self.write(request)
-        elif self.count>1:
+        elif self.content_length==self.num_data_recv and self.count>1:
             request = make_request('GET', self.path,
                 {'Host': self.host,
                  'Connection': 'keep-alive'}
