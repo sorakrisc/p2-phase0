@@ -66,6 +66,7 @@ class HTTPClient(asyncore.dispatcher):
             {'Host': host,
              'Connection': 'keep-alive'}
         )
+        self.count-=1
         self.write(request)
 
     def write(self, data):
@@ -88,7 +89,7 @@ class HTTPClient(asyncore.dispatcher):
         self.close()
 
 
-    def writeable(self):
+    def writable(self):
         """ Check if there is anything to send """
         return len(self.sendbuf) > 0
 
@@ -99,7 +100,10 @@ class HTTPClient(asyncore.dispatcher):
 
     def handle_read(self):
         recv_bytes = self.recv(HTTPClient.RECV_CHUNK_SIZE)
-        self.logger.debug("{} recvd {} bytes".format(self.num,len(recv_bytes)))
+        # self.logger.debug("{} recvd {} bytes".format(self.num,len(recv_bytes)))
+        if self.num == self.count:
+            head, data = recv_bytes.split("\r\n\r\n")
+            print "head: %s endhead" %(head)
         self.recvbuf.write(recv_bytes)
         self.count -= 1
         if self.count == 1:
@@ -108,7 +112,7 @@ class HTTPClient(asyncore.dispatcher):
                  'Connection': 'close'}
             )
             self.write(request)
-        else:
+        elif self.count>1:
             request = make_request('GET', self.path,
                 {'Host': self.host,
                  'Connection': 'keep-alive'}
@@ -118,19 +122,17 @@ class HTTPClient(asyncore.dispatcher):
         print "self.num: ",self.num
 
 
-maxConcurrent = int(sys.argv[-2])
-numRequests = int(sys.argv[-4])
-servName = sys.argv[-1]
 
-
-
-requestsInOneTime = numRequests//maxConcurrent
-print requestsInOneTime, "HIII"
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
         format="%(asctime)-15s %(name)s: %(message)s"
     )
+    maxConcurrent = int(sys.argv[-2])
+    numRequests = int(sys.argv[-4])
+    servName = sys.argv[-1]
+    requestsInOneTime = numRequests//maxConcurrent
+    print requestsInOneTime, "HIII"
     lst=[]
     for i in range(maxConcurrent):
 
