@@ -47,6 +47,7 @@ class HTTPClient(asyncore.dispatcher):
         self.start = 0
         self.end = 0
         self.count = count
+        self.ini_count = count
         self.content_length = 0
         self.num_data_recv = 0
         # Create a logger
@@ -106,40 +107,48 @@ class HTTPClient(asyncore.dispatcher):
             headers[line[:split_here]] = line[split_here+2:]
         return headers
 
-    def handle_error(self):
-        pass
+    # def handle_error(self):
+    #     pass
 
     def handle_read(self):
         recv_bytes = self.recv(HTTPClient.RECV_CHUNK_SIZE)
         # self.logger.debug("{} recvd {} bytes".format(self.num,len(recv_bytes)))
-        if self.num == self.count and self.content_length==0:
+        print "content_length= "+str(self.content_length)
+        print "selfcount= "+ str(self.count)
+        print "selfinicount= ", self.ini_count-1
+        if self.ini_count-1 == self.count and self.content_length==0:
             head, ini_data = recv_bytes.split("\r\n\r\n")
             a= self.getInfo(head)
             # print "head: %s endhead" %(head)
-            self.content_length = a["Content-Length"]
+            self.content_length = int(a["Content-Length"])
             self.num_data_recv+=len(ini_data)
+            self.recvbuf.write(ini_data)
             print "This is content-length: ",a["Content-Length"]
-        elif self.num ==self.count:
+            print "len(ini_data)= ",len(ini_data)
+            print ini_data
+        elif self.ini_count-1 == self.count:
+            print "HI"
+            print len(recv_bytes)
+            print recv_bytes
             self.num_data_recv+=len(recv_bytes)
             self.recvbuf.write(recv_bytes)
-        print "1.",self.num_data_recv
-        print "2.", self.content_length
 
-        self.count -= 1
         if self.content_length==self.num_data_recv and self.count == 1:
+            self.count -= 1
             request = make_request('GET', self.path,
                 {'Host': self.host,
                  'Connection': 'close'}
             )
             self.write(request)
         elif self.content_length==self.num_data_recv and self.count>1:
+            self.count -= 1
             request = make_request('GET', self.path,
                 {'Host': self.host,
                  'Connection': 'keep-alive'}
             )
             self.write(request)
         # print "recv_bytes>>>>",recv_bytes, ": ",self.num
-        print "self.num: ",self.num
+        # print "self.num: ",self.num
 
 
 
