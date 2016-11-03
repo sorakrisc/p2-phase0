@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-total_bytes = 0
+
+# total_bytes = 0
 
 import asyncore, socket
 import logging
@@ -7,7 +8,6 @@ from cStringIO import StringIO
 from urlparse import urlparse
 import sys
 import time
-
 
 def make_request(req_type, what, details, ver="1.1"):
     """ Compose an HTTP request """
@@ -50,6 +50,7 @@ class HTTPClient(asyncore.dispatcher):
         self.ini_count = count
         self.content_length = 0
         self.num_data_recv = 0
+
         # Create a logger
         self.logger = logging.getLogger(url)
 
@@ -66,13 +67,13 @@ class HTTPClient(asyncore.dispatcher):
             # Make an initial request & deliver it
             request = make_request('GET', path,
                 {'Host': host,
-                 'Connection': 'close'}
+                 'Connection': 'close', 'P2Tag': 'u5880068_u5880077'}
             )
         else:
             # Make an initial request & deliver it
             request = make_request('GET', path,
                 {'Host': host,
-                 'Connection': 'keep-alive'}
+                 'Connection': 'keep-alive', 'P2Tag': 'u5880068_u5880077' }
             )
         self.count-=1
         self.write(request)
@@ -82,18 +83,12 @@ class HTTPClient(asyncore.dispatcher):
         self.sendbuf += data
 
     def handle_connect(self):
-        # start = time.handle_connect()
         self.start = time.time()
 
-        # print "connect>>>>>>>>", self.num
-        # activate when  something connect
-        # self.logger.debug("Connected")
 
     def handle_close(self):
         self.end = time.time()
         totalTime = self.end-self.start
-        # print "CLOSE>>>>>", self.num," Time: ", totalTime
-        # self.logger.debug("Disconnected")
         self.close()
 
     def writable(self):
@@ -113,11 +108,9 @@ class HTTPClient(asyncore.dispatcher):
         return headers
 
     def handle_read(self):
-        # print "Doing handle read"
         recv_bytes = self.recv(HTTPClient.RECV_CHUNK_SIZE)
-        # print "bytes/cved = {}".format(len(recv_bytes))
-        global total_bytes
-        total_bytes += len(recv_bytes)
+        # global total_bytes
+        # total_bytes += len(recv_bytes)
         if self.ini_count-1 == self.count and self.content_length==0:
             head, ini_data = recv_bytes.split("\r\n\r\n")
             a= self.getInfo(head)
@@ -128,41 +121,28 @@ class HTTPClient(asyncore.dispatcher):
             self.num_data_recv+=len(recv_bytes)
             self.recvbuf.write(recv_bytes)
         if self.ini_count-1 != self.count and self.content_length != self.num_data_recv:
-            # print "HI 2"
             nl_find = recv_bytes.find("\r\n\r\n")
             if nl_find==-1:
                 self.num_data_recv+=len(recv_bytes)
             else:
                 self.num_data_recv+=len(recv_bytes[nl_find+4:])
-        # print recv_bytes
-        # print self.num_data_recv
-        # print self.content_length
         if self.content_length==self.num_data_recv and self.count == 1:
-            # print "FIRST IF"
             self.num_data_recv=0
             self.count -= 1
-            # print self.count
             request = make_request('GET', self.path,
                 {'Host': self.host,
-                 'Connection': 'close'}
+                 'Connection': 'close', 'P2Tag': 'u5880068_u5880077'}
             )
             self.write(request)
-            # print "GGWP"
-            # print "eiei"
+
         elif self.content_length==self.num_data_recv and self.count>1:
-            # print "SECOND ELIF"
             self.num_data_recv=0
             self.count -= 1
             request = make_request('GET', self.path,
                 {'Host': self.host,
-                 'Connection': 'keep-alive'}
+                 'Connection': 'keep-alive', 'P2Tag': 'u5880068_u5880077'}
             )
             self.write(request)
-        # print "recv_bytes>>>>",recv_bytes, ": ",self.num
-        # print ">>>>>>>>>>>>>>>>"
-
-
-
 
 if __name__ == "__main__":
     start_time =time.time()
@@ -173,10 +153,8 @@ if __name__ == "__main__":
     numRequests = int(sys.argv[-4])
     servName = sys.argv[-1]
     requestsInOneTime = numRequests//maxConcurrent
-    # print requestsInOneTime, "HIII"
     lst=[]
     for i in range(maxConcurrent):
-
         lst.append(HTTPClient(servName, i, requestsInOneTime))
 
     asyncore.loop()
@@ -186,4 +164,4 @@ if __name__ == "__main__":
     print "Complete requests: %s" %(numRequests)
     print "Failed requests: 0"
     print "Avg requests per second: %s [req/s]" % ((numRequests)/(time_taken))
-    print total_bytes
+    # print total_bytes
