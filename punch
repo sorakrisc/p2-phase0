@@ -179,10 +179,9 @@ if __name__ == "__main__":
     print "Avg requests per second: %s [req/s]" % ((complete_req)/(time_taken))
     print ""
     print "Percentage of the requests served within a certain time (ms)"
-    print "  50%    ",(((lst_all_req_time[int(len(lst_all_req_time)/2)])*10**3))
-
-    print "  60%    ",(((lst_all_req_time[int(len(lst_all_req_time)/1.66666)])*10**3))
-    print "  70%    ",(((lst_all_req_time[int(len(lst_all_req_time)/1.42857)])*10**3))
-    print "  80%    ",(((lst_all_req_time[int(len(lst_all_req_time)/1.25)])*10**3))
-    print "  90%    ",(((lst_all_req_time[int(len(lst_all_req_time)/1.11111)])*10**3))
-    print " 100%    ",(((lst_all_req_time[int(len(lst_all_req_time)-1)])*10**3))
+    print "  50%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/2)])*10**3))
+    print "  60%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/1.66666)])*(10**3)))
+    print "  70%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/1.42857)])*(10**3)))
+    print "  80%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/1.25)])*(10**3)))
+    print "  90%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/1.11111)])*(10**3)))
+    print " 100%    ",(int((lst_all_req_time[int(len(lst_all_req_time)-1)])*(10**3)))
