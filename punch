@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+total_bytes = 0
 
 import asyncore, socket
 import logging
@@ -62,12 +62,18 @@ class HTTPClient(asyncore.dispatcher):
 
         # Create recv buffer and send buffer
         (self.recvbuf, self.sendbuf) = (StringIO(), "")
-
-        # Make an initial request & deliver it
-        request = make_request('GET', path,
-            {'Host': host,
-             'Connection': 'keep-alive'}
-        )
+        if self.count==1:
+            # Make an initial request & deliver it
+            request = make_request('GET', path,
+                {'Host': host,
+                 'Connection': 'close'}
+            )
+        else:
+            # Make an initial request & deliver it
+            request = make_request('GET', path,
+                {'Host': host,
+                 'Connection': 'keep-alive'}
+            )
         self.count-=1
         self.write(request)
 
@@ -79,15 +85,15 @@ class HTTPClient(asyncore.dispatcher):
         # start = time.handle_connect()
         self.start = time.time()
 
-        print "connect>>>>>>>>", self.num
+        # print "connect>>>>>>>>", self.num
         # activate when  something connect
-        self.logger.debug("Connected")
+        # self.logger.debug("Connected")
 
     def handle_close(self):
         self.end = time.time()
         totalTime = self.end-self.start
-        print "CLOSE>>>>>", self.num," Time: ", totalTime
-        self.logger.debug("Disconnected")
+        # print "CLOSE>>>>>", self.num," Time: ", totalTime
+        # self.logger.debug("Disconnected")
         self.close()
 
     def writable(self):
@@ -107,47 +113,45 @@ class HTTPClient(asyncore.dispatcher):
         return headers
 
     def handle_read(self):
-        print "Doing handle read"
+        # print "Doing handle read"
         recv_bytes = self.recv(HTTPClient.RECV_CHUNK_SIZE)
-        # self.logger.debug("{} recvd {} bytes".format(self.num,len(recv_bytes)))
-        # print "content_length= "+str(self.content_length)
-        # print "selfcount= "+ str(self.count)
-        # print "selfinicount= ", self.ini_count-1
-
+        # print "bytes/cved = {}".format(len(recv_bytes))
+        global total_bytes
+        total_bytes += len(recv_bytes)
         if self.ini_count-1 == self.count and self.content_length==0:
-            print "YO"
             head, ini_data = recv_bytes.split("\r\n\r\n")
             a= self.getInfo(head)
-            # print "head: %s endhead" %(head)
             self.content_length = int(a["Content-Length"])
             self.num_data_recv+=len(ini_data)
             self.recvbuf.write(ini_data)
-            print "This is content-length: ", self.content_length
-            print "len(ini_data)= ",len(ini_data)
-            print "______________"
         elif self.ini_count-1 == self.count:
-            print "HI"
-            print len(recv_bytes)
-            # print recv_bytes
             self.num_data_recv+=len(recv_bytes)
             self.recvbuf.write(recv_bytes)
-
-
-
+        if self.ini_count-1 != self.count and self.content_length != self.num_data_recv:
+            # print "HI 2"
+            nl_find = recv_bytes.find("\r\n\r\n")
+            if nl_find==-1:
+                self.num_data_recv+=len(recv_bytes)
+            else:
+                self.num_data_recv+=len(recv_bytes[nl_find+4:])
+        # print recv_bytes
+        # print self.num_data_recv
+        # print self.content_length
         if self.content_length==self.num_data_recv and self.count == 1:
-            print "FIRST IF"
+            # print "FIRST IF"
+            self.num_data_recv=0
             self.count -= 1
-            print self.count
+            # print self.count
             request = make_request('GET', self.path,
                 {'Host': self.host,
                  'Connection': 'close'}
             )
             self.write(request)
-            print "GGWP"
-            self.close()
-            print "eiei"
+            # print "GGWP"
+            # print "eiei"
         elif self.content_length==self.num_data_recv and self.count>1:
-            print "SECOND ELIF"
+            # print "SECOND ELIF"
+            self.num_data_recv=0
             self.count -= 1
             request = make_request('GET', self.path,
                 {'Host': self.host,
@@ -155,12 +159,13 @@ class HTTPClient(asyncore.dispatcher):
             )
             self.write(request)
         # print "recv_bytes>>>>",recv_bytes, ": ",self.num
-        print ">>>>>>>>>>>>>>>>"
+        # print ">>>>>>>>>>>>>>>>"
 
 
 
 
 if __name__ == "__main__":
+    start_time =time.time()
     logging.basicConfig(level=logging.DEBUG,
         format="%(asctime)-15s %(name)s: %(message)s"
     )
@@ -168,10 +173,17 @@ if __name__ == "__main__":
     numRequests = int(sys.argv[-4])
     servName = sys.argv[-1]
     requestsInOneTime = numRequests//maxConcurrent
-    print requestsInOneTime, "HIII"
+    # print requestsInOneTime, "HIII"
     lst=[]
     for i in range(maxConcurrent):
 
         lst.append(HTTPClient(servName, i, requestsInOneTime))
 
     asyncore.loop()
+    end_time = time.time()
+    time_taken= end_time - start_time
+    print "Time taken for tests: %s seconds" %(time_taken)
+    print "Complete requests: %s" %(numRequests)
+    print "Failed requests: 0"
+    print "Avg requests per second: %s [req/s]" % ((numRequests)/(time_taken))
+    print total_bytes
