@@ -118,6 +118,8 @@ class HTTPClient(asyncore.dispatcher):
             if head.find("\r\n\r\n") != -1 or head.find("HTTP/1.1")!= -1:
                 if head[:20].find("HTTP/1.1 2")==-1:
                     fail_req+=1
+                    self.num_data_recv==self.content_length
+
             self.content_length = int(a["Content-Length"])
             self.num_data_recv+=len(ini_data)
             self.recvbuf.write(ini_data)
@@ -137,6 +139,7 @@ class HTTPClient(asyncore.dispatcher):
                 if header.find("\r\n\r\n") != -1 or header.find("HTTP/1.1")!= -1:
                     if header[:20].find("HTTP/1.1 2")==-1:
                         fail_req+=1
+                        self.num_data_recv=self.content_length
 
         # If it is the last request, send the 'close' connection'. 
         if self.content_length==self.num_data_recv and self.count == 1:
