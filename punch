@@ -172,10 +172,11 @@ if __name__ == "__main__":
     end_time = time.time()
     time_taken= end_time - start_time
     lst_all_req_time.sort()
+    complete_req = numRequests -fail_req
     print "Time taken for tests: %s seconds" %(time_taken)
-    print "Complete requests: %s" %(numRequests)
+    print "Complete requests: %s" %(complete_req)
     print "Failed requests: %s" %(fail_req)
-    print "Avg requests per second: %s [req/s]" % ((numRequests-fail_req)/(time_taken))
+    print "Avg requests per second: %s [req/s]" % ((complete_req)/(time_taken))
     print ""
     print "Percentage of the requests served within a certain time (ms)"
     print "  50%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/2)])*10**3))
