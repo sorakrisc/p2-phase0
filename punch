@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-# total_bytes = 0
-
+fail_req=0
+lst_all_req_time = []
 import asyncore, socket
 import logging
 from cStringIO import StringIO
@@ -50,7 +50,8 @@ class HTTPClient(asyncore.dispatcher):
         self.ini_count = count
         self.content_length = 0
         self.num_data_recv = 0
-
+        global lst_all_req_time
+        global fail_req
         # Create a logger
         self.logger = logging.getLogger(url)
 
@@ -76,6 +77,7 @@ class HTTPClient(asyncore.dispatcher):
                  'Connection': 'keep-alive', 'P2Tag': 'u5880068_u5880077' }
             )
         self.count-=1
+        self.start_timer = time.time()
         self.write(request)
 
     def write(self, data):
@@ -83,12 +85,9 @@ class HTTPClient(asyncore.dispatcher):
         self.sendbuf += data
 
     def handle_connect(self):
-        self.start = time.time()
-
+        pass
 
     def handle_close(self):
-        self.end = time.time()
-        totalTime = self.end-self.start
         self.close()
 
     def writable(self):
@@ -109,11 +108,12 @@ class HTTPClient(asyncore.dispatcher):
 
     def handle_read(self):
         recv_bytes = self.recv(HTTPClient.RECV_CHUNK_SIZE)
-        # global total_bytes
-        # total_bytes += len(recv_bytes)
         if self.ini_count-1 == self.count and self.content_length==0:
             head, ini_data = recv_bytes.split("\r\n\r\n")
             a= self.getInfo(head)
+            if head.find("\r\n\r\n") != -1 or head.find("HTTP/1.1")!= -1:
+                if head[:20].find("HTTP/1.1 2")==-1:
+                    fail_req+=1
             self.content_length = int(a["Content-Length"])
             self.num_data_recv+=len(ini_data)
             self.recvbuf.write(ini_data)
@@ -126,22 +126,32 @@ class HTTPClient(asyncore.dispatcher):
                 self.num_data_recv+=len(recv_bytes)
             else:
                 self.num_data_recv+=len(recv_bytes[nl_find+4:])
+                header=recv_bytes[:nl_find+4]
+                if header.find("\r\n\r\n") != -1 or header.find("HTTP/1.1")!= -1:
+                    if header[:20].find("HTTP/1.1 2")==-1:
+                        fail_req+=1
         if self.content_length==self.num_data_recv and self.count == 1:
+            self.end_timer=time.time()
+            lst_all_req_time.append(self.end_timer-self.start_timer)
             self.num_data_recv=0
             self.count -= 1
             request = make_request('GET', self.path,
                 {'Host': self.host,
                  'Connection': 'close', 'P2Tag': 'u5880068_u5880077'}
             )
+            self.start_timer=time.time()
             self.write(request)
 
         elif self.content_length==self.num_data_recv and self.count>1:
+            self.end_timer = time.time()
+            lst_all_req_time.append(self.end_timer-self.start_timer)
             self.num_data_recv=0
             self.count -= 1
             request = make_request('GET', self.path,
                 {'Host': self.host,
                  'Connection': 'keep-alive', 'P2Tag': 'u5880068_u5880077'}
             )
+            self.start_timer=time.time()
             self.write(request)
 
 if __name__ == "__main__":
@@ -152,6 +162,7 @@ if __name__ == "__main__":
     maxConcurrent = int(sys.argv[-2])
     numRequests = int(sys.argv[-4])
     servName = sys.argv[-1]
+
     requestsInOneTime = numRequests//maxConcurrent
     lst=[]
     for i in range(maxConcurrent):
@@ -160,8 +171,16 @@ if __name__ == "__main__":
     asyncore.loop()
     end_time = time.time()
     time_taken= end_time - start_time
+    lst_all_req_time.sort()
     print "Time taken for tests: %s seconds" %(time_taken)
     print "Complete requests: %s" %(numRequests)
-    print "Failed requests: 0"
-    print "Avg requests per second: %s [req/s]" % ((numRequests)/(time_taken))
-    # print total_bytes
+    print "Failed requests: %s" %(fail_req)
+    print "Avg requests per second: %s [req/s]" % ((numRequests-fail_req)/(time_taken))
+    print ""
+    print "Percentage of the requests served within a certain time (ms)"
+    print "  50%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/2)])*10**3))
+    print "  60%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/1.66666)])*10**3))
+    print "  70%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/1.42857)])*10**3))
+    print "  80%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/1.25)])*10**3))
+    print "  90%    ",(int((lst_all_req_time[int(len(lst_all_req_time)/1.11111)])*10**3))
+    print " 100%    ",(int((lst_all_req_time[int(len(lst_all_req_time)-1)])*10**3))
